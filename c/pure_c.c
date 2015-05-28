@@ -105,10 +105,6 @@ int local2vector(unit peptide[],int point,int seq_size){
     return TRUE;
 }
 
-int local2xy(unit peptide[],int point,int seq_size){
-    
-    return TRUE;
-} 
 int vector2xy(unit peptide[],int point,int seq_size){
     int i;
     int tmpxy[2];
@@ -142,7 +138,7 @@ int vector2xy(unit peptide[],int point,int seq_size){
         }
         return TRUE;
     }else if(peptide[point].vector == 6){
-        if(peptide[point-1].vector==0){
+        if(peptide[point-1].vector==3){
             for(i=point;i<seq_size;i++){
                 //        
                 //  ____   [cos(-90) -sin(-90)][x] _ [x*cos(-90)-y*sin(-90)]
@@ -150,18 +146,18 @@ int vector2xy(unit peptide[],int point,int seq_size){
                 //
                 tmpxy[0] = peptide[i].xy[0]-basexy[0];
                 tmpxy[1] = peptide[i].xy[1]-basexy[1];
-                peptide[i].xy[0] = basexy[0]-tmpxy[1];
-                peptide[i].xy[1] = basexy[1]+tmpxy[0];
+                peptide[i].xy[0] = basexy[0]+tmpxy[1];
+                peptide[i].xy[1] = basexy[1]-tmpxy[0];
             }
-        }else if(peptide[point-1].vector==6){
+        }else if(peptide[point-1].vector==9){
             for(i=point;i<seq_size;i++){
                 //         
-                //     |   [cos(90) -sin(90)][x] _ [x*cos(90)-y*sin(90)]
-                // ----    [sin(90)  cos(90)][y] - [x*sin(90)+y*cos(90)]
+                //  _____  [cos(90) -sin(90)][x] _ [x*cos(90)-y*sin(90)]
+                // |       [sin(90)  cos(90)][y] - [x*sin(90)+y*cos(90)]
                 //
                 tmpxy[0] = peptide[i].xy[0]-basexy[0];
                 tmpxy[1] = peptide[i].xy[1]-basexy[1];
-                peptide[i].xy[0] = basexy[0]+tmpxy[1];
+                peptide[i].xy[0] = basexy[0]-tmpxy[1];
                 peptide[i].xy[1] = basexy[1]+tmpxy[0];
             }
         }
@@ -187,17 +183,36 @@ int vector2xy(unit peptide[],int point,int seq_size){
                 tmpxy[0] = peptide[i].xy[0]-basexy[0];
                 tmpxy[1] = peptide[i].xy[1]-basexy[1];
                 peptide[i].xy[0] = basexy[0]+tmpxy[1];
-                peptide[i].xy[1] = basexy[1]+tmpxy[0];
+                peptide[i].xy[1] = basexy[1]-tmpxy[0];
             }
         }
         return TRUE;
-
     }else{
-        
+        if(peptide[point-1].vector==0){
+            for(i=point;i<seq_size;i++){
+                //        
+                //        [cos(90) -sin(90)][x] _ [x*cos(90)-y*sin(90)]
+                //  ____| [sin(90)  cos(90)][y] - [x*sin(90)+y*cos(90)]
+                //
+                tmpxy[0] = peptide[i].xy[0]-basexy[0];
+                tmpxy[1] = peptide[i].xy[1]-basexy[1];
+                peptide[i].xy[0] = basexy[0]-tmpxy[1];
+                peptide[i].xy[1] = basexy[1]+tmpxy[0];
+            }
+        }else if(peptide[point-1].vector==6){
+            for(i=point;i<seq_size;i++){
+                //         
+                //        [cos(-90) -sin(-90)][x] _ [x*cos(-90)-y*sin(-90)]
+                //  |____ [sin(-90)  cos(-90)][y] - [x*sin(-90)+y*cos(-90)]
+                //
+                tmpxy[0] = peptide[i].xy[0]-basexy[0];
+                tmpxy[1] = peptide[i].xy[1]-basexy[1];
+                peptide[i].xy[0] = basexy[0]+tmpxy[1];
+                peptide[i].xy[1] = basexy[1]-tmpxy[0];
+            }
+        }
+        return TRUE;
     }
-    
-    
-        
     return TRUE;
 }
 
@@ -278,6 +293,8 @@ int test(unit peptide[],int seq[],int seq_size,int total_step,constant constants
     printf("conerflip\n");
     show(peptide,seq_size);
 
+
+    
     
     return TRUE;
 }
