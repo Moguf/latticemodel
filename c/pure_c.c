@@ -33,6 +33,8 @@ typedef struct const_values{
 int init(unit peptide[],int state[],int seq_size);
 int main_loop(unit peptide[],int total_step,constant constants,int seq_size);
 int move(unit peptide[],int seq_size);
+int compare_states(unit peptide1[],unit peptide2[],int seq_size);
+
 
 int local2vector(unit peptide[],int seq_size);
 int vector2xy(unit peptide[],int seq_size);
@@ -61,7 +63,7 @@ int main(void){
     
     srand(0);
     constants.k=1;
-    constants.T=1.1;
+    constants.T=0.4;
     
     peptide=(unit *)malloc(sizeof(unit)*seq_size);
     
@@ -104,21 +106,26 @@ int main_loop(unit peptide[],int total_step,constant constants,int seq_size){
     for(istep=0;istep<total_step;istep++){
         copy(tmp_peptide,peptide,seq_size);
         move(tmp_peptide,seq_size);
-        mc(peptide,tmp_peptide,constants,seq_size);
-        if(istep%(total_step/100)==0){
-            constants.T-=0.01;
-            printf("%4.2lf\n",constants.T);
-        }
+        if(TRUE!=compare_states(tmp_peptide,peptide,seq_size))
+            mc(peptide,tmp_peptide,constants,seq_size);
     }
     
     show(peptide,seq_size);
     return TRUE;
 }
 
+int compare_states(unit peptide1[],unit peptide2[],int seq_size){
+    int i;
+
+    for(i=2;i<seq_size;i++)
+        if(peptide1[i].local!=peptide2[i].local)
+            return FALSE;
+    return TRUE;
+}
+
 int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size){
     int E1,E2;
     double prob;
-    
     E1=calc_energy(peptide1,seq_size);
     E2=calc_energy(peptide2,seq_size);
     
@@ -131,9 +138,9 @@ int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size){
         }
     }
 
-
     return TRUE;
 }
+
 int calc_energy(unit peptide[],int seq_size){
     int energy=0;
     int i,j;
@@ -227,6 +234,8 @@ int move(unit peptide[],int seq_size){
         // leftright = 0(left),1(right);
         point=genrand_int32()%(seq_size-3)+2;
         leftright=genrand_int32()%2;
+        if(leftright==peptide[point].local)
+            return TRUE;
         flip(peptide,point,leftright,seq_size);
         return TRUE;
         
