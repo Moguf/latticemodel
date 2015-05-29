@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
+#include "MT.h"
 //----------------------------------------//
 #define TRUE 1
 #define FALSE 0
@@ -27,24 +29,28 @@ typedef struct const_values{
 } constant;
 
 //-------------------- define func --------------------//
-int init(unit peptide[],int state[],int size);
-int main_loop(unit peptide[],int total_step,constant constants,int size);
+int init(unit peptide[],int state[],int seq_size);
+int main_loop(unit peptide[],int total_step,constant constants,int seq_size);
 int move(unit peptide[],int seq_size);
 
 int local2vector(unit peptide[],int seq_size);
 int vector2xy(unit peptide[],int seq_size);
 int setlocal(unit peptide[],int point,int value,int seq_size);
 
+int copy(unit tmp_peptide[],unit peptide[],int seq_size);
+int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size);
+int calc_energy(unit peptide[],int seq_size);
 //---------- move sets ----------//
 int flip(unit peptide[],int point,int type,int seq_size);
-int conerflip(unit peptide[],int point,int seq_size);
+int cornerflip(unit peptide[],int point,int seq_size);
+int searchcorner(unit peptide[],int seq_size);
 
 int test(unit peptide[],int state[],int size,int total_step,constant constants);
 int show(unit peptide[],int seq_size);
 //----------------------------------------//
 int main(void){
     int seq[]={1,1,1,1,0,0,0,0,0};
-    int total_step=10;
+    int total_step=100;
     int seq_size=sizeof(seq)/sizeof(int);
     constant constants;
     unit *peptide;
@@ -65,32 +71,77 @@ int main(void){
 
 
 //----------------------------------------//
-int init(unit peptide[],int state[],int size){
+int init(unit peptide[],int state[],int seq_size){
     int i;
-    for(i=0;i<size;i++){
+    for(i=0;i<seq_size;i++){
         peptide[i].state=state[i];
         peptide[i].xy[0]=0;
         peptide[i].xy[1]=i;
     }
-    // local i=2 to i=size
-    for(i=0;i<size;i++){
+
+    for(i=0;i<seq_size;i++){
         peptide[i].local=0;
     }
-    // vector i=1 to i=size
-    for(i=0;i<size;i++){
+
+    for(i=0;i<seq_size;i++){
         peptide[i].vector=0;
     }
     return TRUE;
 }
 
-int main_loop(unit peptide[],int total_step,constant constants,int size){
+int main_loop(unit peptide[],int total_step,constant constants,int seq_size){
     int istep;
-    double MAX=2147483647.0;
+    unit tmp_peptide[seq_size];
+    init_genrand(10);
+    
     for(istep=0;istep<total_step;istep++){
-        printf("%lf\n",MAX/(rand()+1));
+        copy(tmp_peptide,peptide,seq_size);
+        move(tmp_peptide,seq_size);
+        mc(peptide,tmp_peptide,constants,seq_size);
+    }
+    show(peptide,seq_size);
+    return TRUE;
+}
+
+int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size){
+    int E1,E2;
+    double prob;
+    
+    E1=calc_energy(peptide1,seq_size);
+    E2=calc_energy(peptide2,seq_size);
+    
+    if(E2<E1){
+        copy(peptide2,peptide1,seq_size);
+    }else{
+        prob=genrand_real3();
+        if(prob<exp(-(E1-E2)/(constants.k*constants.T)))
+            copy(peptide2,peptide1,seq_size);
+        
+    }
+    
+
+    return TRUE;
+}
+int calc_energy(unit peptide[],int seq_size){
+    int energy=0;
+    
+
+    return TRUE;
+}
+
+
+
+int copy(unit tmp_peptide[],unit peptide[],int seq_size){
+    int i=0;
+    for(i=0;i<seq_size;i++){
+        tmp_peptide[i].local=peptide[i].local;
+        tmp_peptide[i].vector=peptide[i].vector;
+        tmp_peptide[i].xy[0]=peptide[i].xy[0];
+        tmp_peptide[i].xy[1]=peptide[i].xy[1];
     }
     return TRUE;
 }
+
 
 int local2vector(unit peptide[],int seq_size){
     int i;
@@ -137,16 +188,84 @@ int setlocal(unit peptide[],int point,int value,int seq_size){
 }
 
 int move(unit peptide[],int seq_size){
+    int switcher=genrand_int32()%2;
+    int point;
+    int leftright;
+
+    switcher=1;
+    if(switcher==0){
+        // flip
+        // point = 0,1,2,...,seq_size-1
+        // leftright = 0(left),1(right);
+        point=genrand_int32()%(seq_size-2)+1;
+        leftright=genrand_int32()%(seq_size-2)+1;
+        flip(peptide,point,leftright,seq_size);
+        return TRUE;
+        
+    }else if(switcher==1){
+        // cornerflip
+        // searche corner.
+        point=searchcorner(peptide,seq_size);
+        printf("--->%d\n",point);
+        if(point==0)
+            return TRUE;
+        cornerflip(peptide,point,seq_size);
+
+    }
     return TRUE;
 }
 
 
 //-------------------- move sets --------------------//
+int searchcorner(unit peptide[],int seq_size){
+    int point=0;
+    int i;
+    int cornernumber=0;
+    int select;
+    int start=3;
+    
+    for(i=start;i<seq_size-1;i++)
+        if(peptide[i].local!=0){
+            cornernumber++;
+            point=i;
+        }
 
-int conerflip(unit peptide[],int point,int seq_size){
+    if(cornernumber==0)
+        return point;
+    else if(cornernumber==1)
+        return point;
+    else{
+        select=genrand_int32()%cornernumber;
+        for(i=start;i<seq_size-1;i++){
+            if(peptide[i].local!=0){
+                if(select==0)
+                    return i;
+                select--;
+            }
+        }
+        return point;
+    }
+    return point;
+}
 
+int cornerflip(unit peptide[],int point,int seq_size){
+    if(peptide[point].local==1){
+        setlocal(peptide,point-1,1,seq_size);
+        setlocal(peptide,point,-2,seq_size);
+        setlocal(peptide,point+1,1,seq_size);
+        local2vector(peptide,seq_size);
+        vector2xy(peptide,seq_size);
+    }else{
+        setlocal(peptide,point-1,-1,seq_size);
+        setlocal(peptide,point,2,seq_size);
+        setlocal(peptide,point+1,-1,seq_size);
+        local2vector(peptide,seq_size);
+        vector2xy(peptide,seq_size);
+    }
     return TRUE;
 }
+
+
 
 int flip(unit peptide[],int point,int type,int seq_size){
     // type=1(right),type=0(left)
@@ -191,8 +310,8 @@ int test(unit peptide[],int seq[],int seq_size,int total_step,constant constants
         }
     }
         
-    main_loop(peptide,total_step,constants,seq_size);
-    
+    /*    
+
     move(peptide,seq_size);
 
     flip(peptide,2,0,seq_size);
@@ -228,14 +347,14 @@ int test(unit peptide[],int seq[],int seq_size,int total_step,constant constants
   8th,local=  0,vector=  6,xy=[  2, -2]\n\
 ----------------------------------------\n");
 
-
-    printf("conerflip\n");
+*/
+    printf("cornerflip\n");
     printf("before---\n");
     init(peptide,seq,seq_size);
     flip(peptide,3,0,seq_size);
     show(peptide,seq_size);
     printf("after----\n");
-    conerflip(peptide,3,seq_size);    
+    cornerflip(peptide,3,seq_size);    
     show(peptide,seq_size);
     printf("\
 answer---\n\
@@ -251,6 +370,10 @@ answer---\n\
 ----------------------------------------\n");
 
 
+    printf("%d\n",searchcorner(peptide,seq_size));
+    move(peptide,seq_size);
+    //main_loop(peptide,total_step,constants,seq_size);
+    show(peptide,seq_size);
     return TRUE;
 }
 
