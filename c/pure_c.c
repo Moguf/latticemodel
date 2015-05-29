@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 #include "MT.h"
 //----------------------------------------//
@@ -55,6 +56,10 @@ int main(void){
     int seq_size=sizeof(seq)/sizeof(int);
     constant constants;
     unit *peptide;
+    clock_t start,end;
+    start=clock();
+
+    
     srand(0);
     constants.k=1;
     constants.T=1.1;
@@ -66,7 +71,9 @@ int main(void){
     init(peptide,seq,seq_size);
     main_loop(peptide,total_step,constants,seq_size);
     printf("Energy =%4d\n",calc_energy(peptide,seq_size));
-
+    end=clock();
+    printf("%8.3lf\n",(double)(end-start)/CLOCKS_PER_SEC);
+    
     return 0;
 }
 
@@ -99,8 +106,8 @@ int main_loop(unit peptide[],int total_step,constant constants,int seq_size){
         copy(tmp_peptide,peptide,seq_size);
         move(tmp_peptide,seq_size);
         mc(peptide,tmp_peptide,constants,seq_size);
-        if(istep%(total_step/10)==0){
-            constants.T-=0.1;
+        if(istep%(total_step/100)==0){
+            constants.T-=0.01;
             printf("%4.2lf\n",constants.T);
         }
     }
