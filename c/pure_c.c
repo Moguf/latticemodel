@@ -49,22 +49,23 @@ int test(unit peptide[],int state[],int size,int total_step,constant constants);
 int show(unit peptide[],int seq_size);
 //----------------------------------------//
 int main(void){
-    int seq[]={1,1,1,1,0,0,0,0,0};
-    int total_step=100;
+    //int seq[]={1,0,0,1,0,0,1,1};
+    int seq[]={1,0,0,1,0,0,1,0,1,0,0,1,0,1,0,1,1,1};
+    int total_step=1000*1000*10;
     int seq_size=sizeof(seq)/sizeof(int);
     constant constants;
     unit *peptide;
     srand(0);
     constants.k=1;
-    constants.T=1;
+    constants.T=1.1;
     
     peptide=(unit *)malloc(sizeof(unit)*seq_size);
     
-    test(peptide,seq,seq_size,total_step,constants);
-    /*
+    //test(peptide,seq,seq_size,total_step,constants);
+
     init(peptide,seq,seq_size);
     main_loop(peptide,total_step,constants,seq_size);
-    */
+    printf("Energy =%4d\n",calc_energy(peptide,seq_size));
 
     return 0;
 }
@@ -98,7 +99,12 @@ int main_loop(unit peptide[],int total_step,constant constants,int seq_size){
         copy(tmp_peptide,peptide,seq_size);
         move(tmp_peptide,seq_size);
         mc(peptide,tmp_peptide,constants,seq_size);
+        if(istep%(total_step/10)==0){
+            constants.T-=0.1;
+            printf("%4.2lf\n",constants.T);
+        }
     }
+    
     show(peptide,seq_size);
     return TRUE;
 }
@@ -111,25 +117,42 @@ int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size){
     E2=calc_energy(peptide2,seq_size);
     
     if(E2<E1){
-        copy(peptide2,peptide1,seq_size);
+        copy(peptide1,peptide2,seq_size);
     }else{
         prob=genrand_real3();
-        if(prob<exp(-(E1-E2)/(constants.k*constants.T)))
-            copy(peptide2,peptide1,seq_size);
-        
+        if(prob<exp(-(E2-E1)/(constants.k*constants.T))){
+            copy(peptide1,peptide2,seq_size);
+        }
     }
-    
+
 
     return TRUE;
 }
 int calc_energy(unit peptide[],int seq_size){
     int energy=0;
-    
+    int i,j;
+    int x,y;
 
-    return TRUE;
+    for(i=0;i<seq_size;i++)
+        for(j=i+1;j<seq_size;j++)
+            if(peptide[i].xy[0]==peptide[j].xy[0] && peptide[i].xy[1]==peptide[j].xy[1])
+                return 1000;
+
+    for(i=0;i<seq_size;i++){
+        if(peptide[i].state==1){
+            for(j=i+3;j<seq_size;j++){
+                if(peptide[j].state==1){
+                    x=peptide[i].xy[0]-peptide[j].xy[0];
+                    y=peptide[i].xy[1]-peptide[j].xy[1];
+                    if(1==(x*x+y*y)){
+                        energy--;
+                    }
+                }
+            }
+        }
+    }
+    return energy;
 }
-
-
 
 int copy(unit tmp_peptide[],unit peptide[],int seq_size){
     int i=0;
@@ -191,14 +214,13 @@ int move(unit peptide[],int seq_size){
     int switcher=genrand_int32()%2;
     int point;
     int leftright;
-
-    switcher=1;
+    
     if(switcher==0){
         // flip
         // point = 0,1,2,...,seq_size-1
         // leftright = 0(left),1(right);
-        point=genrand_int32()%(seq_size-2)+1;
-        leftright=genrand_int32()%(seq_size-2)+1;
+        point=genrand_int32()%(seq_size-3)+2;
+        leftright=genrand_int32()%2;
         flip(peptide,point,leftright,seq_size);
         return TRUE;
         
@@ -206,7 +228,6 @@ int move(unit peptide[],int seq_size){
         // cornerflip
         // searche corner.
         point=searchcorner(peptide,seq_size);
-        printf("--->%d\n",point);
         if(point==0)
             return TRUE;
         cornerflip(peptide,point,seq_size);
