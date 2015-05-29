@@ -46,7 +46,6 @@ int flip(unit peptide[],int point,int type,int seq_size);
 int cornerflip(unit peptide[],int point,int seq_size);
 int searchcorner(unit peptide[],int seq_size);
 
-int test(unit peptide[],int state[],int size,int total_step,constant constants);
 int show(unit peptide[],int seq_size);
 //----------------------------------------//
 int main(void){
@@ -308,103 +307,6 @@ int flip(unit peptide[],int point,int type,int seq_size){
     }
     return TRUE;
 }
-
-
-
-//-------------------- test --------------------//
-int test(unit peptide[],int seq[],int seq_size,int total_step,constant constants){
-    int i;
-    init(peptide,seq,seq_size);
-    for(i=0;i<seq_size;i++){
-        if(peptide[i].state!=seq[i]){
-            printf("in init state.\n");
-            printf("%dth error!!\n",i);
-            return FALSE;
-        }
-        if(peptide[i].local!=0){
-            printf("in init local.\n");
-            printf("%dth error!!\n",i);
-            return FALSE;
-        }
-        if(peptide[i].vector!=0){
-            printf("in init vector.\n");
-            printf("%dth error!!\n",i);
-            return FALSE;
-        }
-        if(peptide[i].xy[0]!=0 &&peptide[i].xy[1]!=i){
-            printf("in init xy.\n");
-            printf("%dth error!!\n",i);
-            return FALSE;
-        }
-    }
-        
-    /*    
-
-    move(peptide,seq_size);
-
-    flip(peptide,2,0,seq_size);
-    printf("flip\n");
-    show(peptide,seq_size);
-    printf("\
----\n\
-  0th,local=  0,vector=  0,xy=[  0,  0]\n\
-  1th,local=  0,vector=  0,xy=[  0,  1]\n\
-  2th,local= -1,vector=  9,xy=[ -1,  1]\n\
-  3th,local=  0,vector=  9,xy=[ -2,  1]\n\
-  4th,local=  0,vector=  9,xy=[ -3,  1]\n\
-  5th,local=  0,vector=  9,xy=[ -4,  1]\n\
-  6th,local=  0,vector=  9,xy=[ -5,  1]\n\
-  7th,local=  0,vector=  9,xy=[ -6,  1]\n\
-  8th,local=  0,vector=  9,xy=[ -7,  1]\n\
-----------------------------------------\n");
-
-    init(peptide,seq,seq_size);
-    flip(peptide,3,1,seq_size);
-    flip(peptide,5,1,seq_size);
-    show(peptide,seq_size);
-    printf("\
----\n\
-  0th,local=  0,vector=  0,xy=[  0,  0]\n\
-  1th,local=  0,vector=  0,xy=[  0,  1]\n\
-  2th,local=  0,vector=  0,xy=[  0,  2]\n\
-  3th,local=  1,vector=  3,xy=[  1,  2]\n\
-  4th,local=  0,vector=  3,xy=[  2,  2]\n\
-  5th,local=  1,vector=  6,xy=[  2,  1]\n\
-  6th,local=  0,vector=  6,xy=[  2,  0]\n\
-  7th,local=  0,vector=  6,xy=[  2, -1]\n\
-  8th,local=  0,vector=  6,xy=[  2, -2]\n\
-----------------------------------------\n");
-
-*/
-    printf("cornerflip\n");
-    printf("before---\n");
-    init(peptide,seq,seq_size);
-    flip(peptide,3,0,seq_size);
-    show(peptide,seq_size);
-    printf("after----\n");
-    cornerflip(peptide,3,seq_size);    
-    show(peptide,seq_size);
-    printf("\
-answer---\n\
-  0th,local=  0,vector=  0,xy=[  0,  0]\n\
-  1th,local=  0,vector=  0,xy=[  0,  1]\n\
-  2th,local= -1,vector=  9,xy=[ -1,  1]\n\
-  3th,local=  1,vector=  0,xy=[ -1,  2]\n\
-  4th,local= -1,vector=  9,xy=[ -2,  2]\n\
-  5th,local=  0,vector=  9,xy=[ -3,  2]\n\
-  6th,local=  0,vector=  9,xy=[ -4,  2]\n\
-  7th,local=  0,vector=  9,xy=[ -5,  2]\n\
-  8th,local=  0,vector=  9,xy=[ -6,  2]\n\
-----------------------------------------\n");
-
-
-    printf("%d\n",searchcorner(peptide,seq_size));
-    move(peptide,seq_size);
-    //main_loop(peptide,total_step,constants,seq_size);
-    show(peptide,seq_size);
-    return TRUE;
-}
-
 
 
 int show(unit peptide[],int seq_size){
