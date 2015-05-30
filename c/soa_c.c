@@ -48,11 +48,6 @@ int flip(unit peptide[],int point,int type,int seq_size);
 int cornerflip(unit peptide[],int point,int seq_size);
 int searchcorner(unit peptide[],int seq_size);
 
-int flipflop(unit peptide[],int point,int seq_size);
-int searchcorner(unit peptide[],int seq_size);
-//------------------------------//
-
-
 int show(unit peptide[],int seq_size);
 //----------------------------------------//
 int main(void){
