@@ -45,11 +45,12 @@ int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size);
 int calc_energy(unit peptide[],int seq_size);
 //---------- move sets ----------//
 int flip(unit peptide[],int point,int type,int seq_size);
+
 int cornerflip(unit peptide[],int point,int seq_size);
 int searchcorner(unit peptide[],int seq_size);
 
 int flipflop(unit peptide[],int point,int seq_size);
-int searchcorner(unit peptide[],int seq_size);
+int searchflipflop(unit peptide[],int seq_size);
 //------------------------------//
 
 
@@ -69,7 +70,7 @@ int main(void){
     
 
     
-    int total_step=1000*1000*10;
+    int total_step=1000*1000*100;
     int seq_size=sizeof(seq)/sizeof(int);
     constant constants;
     unit *peptide;
@@ -82,10 +83,10 @@ int main(void){
     constants.T=0.8;
     
     peptide=(unit *)malloc(sizeof(unit)*seq_size);
-    
-    //test(peptide,seq,seq_size,total_step,constants);
 
+    
     init(peptide,seq,seq_size);
+
     main_loop(peptide,total_step,constants,seq_size);
     printf("Energy =%4d\n",calc_energy(peptide,seq_size));
     end=clock();
@@ -244,9 +245,15 @@ int setlocal(unit peptide[],int point,int value,int seq_size){
 }
 
 int move(unit peptide[],int seq_size){
-    int switcher=genrand_int32()%2;
+    int switcher=0;
     int point;
     int leftright;
+
+    point=searchflipflop(peptide,seq_size);
+    if(point==0)
+        switcher=genrand_int32()%2;
+    else
+        switcher=genrand_int32()%2;
     
     if(switcher==0){
         // flip
@@ -261,18 +268,85 @@ int move(unit peptide[],int seq_size){
         
     }else if(switcher==1){
         // cornerflip
-        // searche corner.
+        // search corner.
         point=searchcorner(peptide,seq_size);
         if(point==0)
             return TRUE;
         cornerflip(peptide,point,seq_size);
+    }else if(switcher==2){
+        // flipflop
+        // search flipflop point.
 
+        if(point==0)
+            return TRUE;
+        flipflop(peptide,point,seq_size);
     }
     return TRUE;
 }
 
 
 //-------------------- move sets --------------------//
+int searchflipflop(unit peptide[],int seq_size){
+    int point=0;
+    int i;
+    int flipnumber=0;
+    int select;
+    int start=2;
+
+    for(i=start;i<seq_size-3;i++){
+        if(peptide[i].local==1 && peptide[i+1].local==-1 && peptide[i+2].local==-1 && peptide[i+3].local==1){
+           flipnumber++;
+           point=i;
+        }else if(peptide[i].local==-1 && peptide[i+1].local==1 && peptide[i+2].local==1 && peptide[i+3].local==-1){
+           flipnumber++;
+           point=i;
+        }
+    }
+
+    if(flipnumber==0)
+        return point;
+    else if(flipnumber==1)
+        return point;
+    else{
+        select=genrand_int32()%flipnumber;
+        for(i=start;i<seq_size-3;i++){
+            if(peptide[i].local!=0){
+                if(peptide[i].local==1 && peptide[i+1].local==-1 && peptide[i+2].local==-1 && peptide[i+3].local==1){
+                    select--;
+                }else if(peptide[i].local==-1 && peptide[i+1].local==1 && peptide[i+2].local==1 && peptide[i+3].local==-1){
+                    select--;
+                }
+                if(select==0)
+                    return i;
+
+            }
+        }
+        return point;
+    }
+    return point;
+}
+
+
+int flipflop(unit peptide[],int point,int seq_size){
+    if(peptide[point].local==1){
+        setlocal(peptide,point,-2,seq_size);
+        setlocal(peptide,point+1,2,seq_size);
+        setlocal(peptide,point+2,2,seq_size);
+        setlocal(peptide,point+3,-2,seq_size);
+        local2vector(peptide,seq_size);
+        vector2xy(peptide,seq_size);
+    }else{
+        setlocal(peptide,point,2,seq_size);
+        setlocal(peptide,point+1,-2,seq_size);
+        setlocal(peptide,point+2,-2,seq_size);
+        setlocal(peptide,point+3,2,seq_size);
+        local2vector(peptide,seq_size);
+        vector2xy(peptide,seq_size);
+    }
+
+
+    return TRUE;
+}
 int searchcorner(unit peptide[],int seq_size){
     int point=0;
     int i;

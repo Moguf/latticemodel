@@ -10,29 +10,23 @@
 
 
 typedef struct unit_struct{
-    int state;
-    int local;
-    // Local is position from i-2th i-1th beads.
-    // ex) Position of ith bead is left from line between i-2th i-1th beads of view.
-    // ex) In that case, Local is -1.
-    // ex) In 'right' case, Local is 1.
-    // ex) In 'straght' case, Local is 0.
-    int vector;
-    // Vector is vector of ith bead.
-    // The vector base is (i-1)th bead and toward ith bead.
-    // The vector has one of {0,3,6,9}.
-    int xy[2];
+    int *state;
+    int *local;
+    int *vector;
+    int *xy[2];
+    double E;
 } unit;
 
 typedef struct const_values{
     double k;
     double T;
+    double ikT;
 } constant;
 
 //-------------------- define func --------------------//
 int init(unit peptide[],int state[],int seq_size);
 int main_loop(unit peptide[],int total_step,constant constants,int seq_size);
-int move(unit peptide[],int seq_size);
+int move(unit *peptide,int seq_size);
 int compare_states(unit peptide1[],unit peptide2[],int seq_size);
 
 
@@ -61,28 +55,27 @@ int main(void){
     /*            1,1,1,1,0,0,0,0,1,1, */
     /*            1,1,1,1,0,1,1,0,1,0}; */
     
-    
-
-    
     int total_step=1000*1000*10;
     int seq_size=sizeof(seq)/sizeof(int);
     constant constants;
     unit *peptide;
     clock_t start,end;
+    
     start=clock();
-
     
     srand(0);
+    
     constants.k=1;
     constants.T=0.8;
+    constants.ikT=1/(constants.k*constants.T);
+    peptide=(unit *)malloc(sizeof(unit));
     
-    peptide=(unit *)malloc(sizeof(unit)*seq_size);
     
     //test(peptide,seq,seq_size,total_step,constants);
 
     init(peptide,seq,seq_size);
     main_loop(peptide,total_step,constants,seq_size);
-    printf("Energy =%4d\n",calc_energy(peptide,seq_size));
+    //printf("Energy =%4d\n",calc_energy(peptide,seq_size));
     end=clock();
     printf("%8.3lf\n",(double)(end-start)/CLOCKS_PER_SEC);
     
@@ -91,29 +84,40 @@ int main(void){
 
 
 //----------------------------------------//
-int init(unit peptide[],int state[],int seq_size){
+int init(unit *peptide,int state[],int seq_size){
     int i;
-    for(i=0;i<seq_size;i++){
-        peptide[i].state=state[i];
-        peptide[i].xy[0]=0;
-        peptide[i].xy[1]=i;
-    }
+    peptide->state=(int *)malloc(sizeof(int)*seq_size);
+    peptide->local=(int *)malloc(sizeof(int)*seq_size);
+    peptide->vector=(int *)malloc(sizeof(int)*seq_size);
+    peptide->xy[0]=(int *)malloc(sizeof(int)*seq_size);
+    peptide->xy[1]=(int *)malloc(sizeof(int)*seq_size);
+    peptide->E=0;
+    
 
     for(i=0;i<seq_size;i++){
-        peptide[i].local=0;
+        peptide->state[i]=state[i];
+        peptide->xy[0][i]=0;
+        peptide->xy[1][i]=i;
+        peptide->local[i]=0;
+        peptide->vector[i]=0;
     }
 
-    for(i=0;i<seq_size;i++){
-        peptide[i].vector=0;
+    return TRUE;
+
+}
+
+int main_loop(unit *peptide,int total_step,constant constants,int seq_size){
+    int istep;
+    
+    init_genrand(10);
+    for(istep=0;istep<total_step;istep++){
+        copy(tmp_peptide,peptide,seq_size);
+        move(tmp_peptide,seq_size);
     }
     return TRUE;
 }
 
-int main_loop(unit peptide[],int total_step,constant constants,int seq_size){
-    int istep;
-    unit tmp_peptide[seq_size];
-    init_genrand(10);
-    
+    /*
     for(istep=0;istep<total_step;istep++){
         copy(tmp_peptide,peptide,seq_size);
         move(tmp_peptide,seq_size);
@@ -340,4 +344,4 @@ int show(unit peptide[],int seq_size){
     }
     return TRUE;
 }
-
+*/
