@@ -27,11 +27,13 @@ typedef struct unit_struct{
 typedef struct const_values{
     double k;
     double T;
+    double ikT;
+    int dT_step;
 } constant;
 
 //-------------------- define func --------------------//
 int init(unit peptide[],int state[],int seq_size);
-int main_loop(unit peptide[],int total_step,constant constants,int seq_size);
+int main_loop(unit peptide[],int total_step,constant *constants,int seq_size);
 int move(unit peptide[],int seq_size);
 int compare_states(unit peptide1[],unit peptide2[],int seq_size);
 
@@ -41,7 +43,7 @@ int vector2xy(unit peptide[],int seq_size);
 int setlocal(unit peptide[],int point,int value,int seq_size);
 
 int copy(unit tmp_peptide[],unit peptide[],int seq_size);
-int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size);
+int mc(unit peptide1[],unit peptide2[],constant *constants,int seq_size);
 int calc_energy(unit peptide[],int seq_size);
 //---------- move sets ----------//
 int flip(unit peptide[],int point,int type,int seq_size);
@@ -72,16 +74,22 @@ int main(void){
     
     int total_step=1000*1000*100;
     int seq_size=sizeof(seq)/sizeof(int);
-    constant constants;
+    constant *constants;
     unit *peptide;
     clock_t start,end;
     start=clock();
+    
+    
+    srand(1);
+    constants=(constant *)malloc(sizeof(constant));
+    constants->k=1;
+    constants->T=1.0;
+    constants->ikT=1 /(constants->T);
+    
 
-    
-    srand(0);
-    constants.k=1;
-    constants.T=0.8;
-    
+    constants->dT_step=1000;
+
+
     peptide=(unit *)malloc(sizeof(unit)*seq_size);
 
     
@@ -90,7 +98,8 @@ int main(void){
     main_loop(peptide,total_step,constants,seq_size);
     printf("Energy =%4d\n",calc_energy(peptide,seq_size));
     end=clock();
-    printf("%8.3lf\n",(double)(end-start)/CLOCKS_PER_SEC);
+    printf("%8.3lfK\n",constants->T);
+    printf("%8.3lfs\n",(double)(end-start)/CLOCKS_PER_SEC);
     
     return 0;
 }
@@ -115,19 +124,21 @@ int init(unit peptide[],int state[],int seq_size){
     return TRUE;
 }
 
-int main_loop(unit peptide[],int total_step,constant constants,int seq_size){
+int main_loop(unit peptide[],int total_step,constant *constants,int seq_size){
     int istep;
     unit tmp_peptide[seq_size];
-    init_genrand(10);
+    init_genrand(14);
     
     for(istep=0;istep<total_step;istep++){
         copy(tmp_peptide,peptide,seq_size);
         move(tmp_peptide,seq_size);
         if(TRUE!=compare_states(tmp_peptide,peptide,seq_size))
             mc(peptide,tmp_peptide,constants,seq_size);
-        if(istep%(total_step/10)==0){
-            constants.T-=constants.T/10;
-            printf("%lf\n",constants.T);
+        if(istep%(total_step/constants->dT_step)==0){
+            printf("%lf\n",constants->T);
+            constants->T-=constants->T*constants->dT_step/total_step*1000;
+            constants->ikT=1/constants->T;
+            //printf("%lf\n",constants.T);
         }
     }
     
@@ -144,7 +155,7 @@ int compare_states(unit peptide1[],unit peptide2[],int seq_size){
     return TRUE;
 }
 
-int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size){
+int mc(unit peptide1[],unit peptide2[],constant *constants,int seq_size){
     int E1,E2;
     double prob;
     E1=calc_energy(peptide1,seq_size);
@@ -154,7 +165,7 @@ int mc(unit peptide1[],unit peptide2[],constant constants,int seq_size){
         copy(peptide1,peptide2,seq_size);
     }else{
         prob=genrand_real3();
-        if(prob<exp(-(E2-E1)/(constants.k*constants.T))){
+        if(prob<exp(-(E2-E1)*constants->ikT)){
             copy(peptide1,peptide2,seq_size);
         }
     }
