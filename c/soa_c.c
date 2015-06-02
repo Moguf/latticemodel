@@ -9,7 +9,6 @@
 #define TRUE 1
 #define FALSE 0
 
-
 typedef struct unit_struct{
     int *state;
     int *local;
@@ -26,67 +25,72 @@ typedef struct const_values{
 
 //-------------------- define func --------------------//
 int init(unit *peptide,int state[],int seq_size);
-int main_loop(unit *peptide,int total_step,constant constants,int seq_size);
+int main_loop(unit *peptide,int total_step,constant *constants,int seq_size);
 int move(unit *peptide,int seq_size);
 int compare_states(unit *peptide1,unit *peptide2,int seq_size);
-
 
 int local2vector(unit *peptide,int seq_size);
 int vector2xy(unit *peptide,int seq_size);
 int setlocal(unit *peptide,int point,int value,int seq_size);
 
 int copy(unit *tmp_peptide,unit *peptide,int seq_size);
-int mc(unit *peptide1,unit *peptide2,constant constants,int seq_size);
+int mc(unit *peptide1,unit *peptide2,constant *constants,int seq_size);
 int calc_energy(unit *peptide,int seq_size);
 
-void myfree(unit *peptide);
+void peptidefree(unit *peptide);
+void test(unit *peptide,int total_step,constant *constants,int seq_size);
 //---------- move sets ----------//
 int flip(unit *peptide,int point,int type,int seq_size);
 int cornerflip(unit *peptide,int point,int seq_size);
 int searchcorner(unit *peptide,int seq_size);
 
-int show(unit peptide[],int seq_size);
+int show(unit *peptide,int seq_size);
 //----------------------------------------//
 int main(int argv,char *argc[]){
     //int seq[]={1,0,0,1,0,0,1,1};
-    int seq[]={1,0,0,1,0,0,1,0,1,0,0,1,0,1,0,1,1,1};
+    //int seq[]={1,0,0,1,0,0,1,0,1,0,0,1,0,1,0,1,1,1};
     //int seq[]={1,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,1};
-    /* int seq[]={0,0,1,1,1,0,1,1,1,1, */
-    /*            1,1,1,1,0,0,0,1,1,1, */
-    /*            1,1,1,1,1,1,1,0,1,0, */
-    /*            0,0,1,1,1,1,1,1,1,1, */
-    /*            1,1,1,1,0,0,0,0,1,1, */
-    /*            1,1,1,1,0,1,1,0,1,0}; */
+    int seq[]={0,0,1,1,1,0,1,1,1,1,
+               1,1,1,1,0,0,0,1,1,1,
+               1,1,1,1,1,1,1,0,1,0,
+               0,0,1,1,1,1,1,1,1,1,
+               1,1,1,1,0,0,0,0,1,1,
+               1,1,1,1,0,1,1,0,1,0};
     
     int total_step=atoi(argc[1]);
     int seq_size=sizeof(seq)/sizeof(int);
-    constant constants;
+    constant *constants;
     unit *peptide;
     clock_t start,end;
     
     start=clock();
     
-    srand(2);
+    init_genrand(atoi(argc[2]));
 
-    constants.k=1;
-    constants.T=2.0;
-    constants.ikT=1/(constants.k*constants.T);
+    constants=(constant *)malloc(sizeof(constant));
+    constants->k=1;
+    constants->T=0.3;
+    constants->ikT=1/(constants->k*constants->T);
     peptide=(unit *)malloc(sizeof(unit));
     
     
-    //test(peptide,seq,seq_size,total_step,constants);
+
 
     init(peptide,seq,seq_size);
+    //test(peptide,total_step,constants,seq_size);
     main_loop(peptide,total_step,constants,seq_size);
     printf(">> %4d\n",calc_energy(peptide,seq_size));
+    
     end=clock();
-    printf("%8.3lf\n",(double)(end-start)/CLOCKS_PER_SEC);
+    printf(">%8.3lf\n",(double)(end-start)/CLOCKS_PER_SEC);
 
-    myfree(peptide);
+    peptidefree(peptide);
+    free(constants);
+    
     return 0;
 }
 
-void myfree(unit *peptide){
+void peptidefree(unit *peptide){
     free(peptide->state);
     free(peptide->local);
     free(peptide->vector);
@@ -115,10 +119,9 @@ int init(unit *peptide,int state[],int seq_size){
     return TRUE;
 }
 
-int main_loop(unit *peptide,int total_step,constant constants,int seq_size){
+int main_loop(unit *peptide,int total_step,constant *constants,int seq_size){
     int istep;
     unit *tmp_peptide;
-    init_genrand(10);
     
     tmp_peptide=(unit *)malloc(sizeof(unit));
     init(tmp_peptide,peptide->state,seq_size);
@@ -128,13 +131,14 @@ int main_loop(unit *peptide,int total_step,constant constants,int seq_size){
         move(tmp_peptide,seq_size);
         if(TRUE!=compare_states(tmp_peptide,peptide,seq_size))
             mc(peptide,tmp_peptide,constants,seq_size);
-        if(istep%(total_step/100)==0){
-            constants.T=exp(-3*constants.T*istep/total_step);
-            constants.ikT=1/(constants.T*constants.k);
+        if(istep%(total_step/1000)==0){
+            printf("%lf",constants->T);
+            printf("-->%lf\n",(double)istep/(double)total_step);
+            constants->T=exp(-3*constants->T*istep/total_step);
+            constants->ikT=1/(constants->T*constants->k);
         }
     }
-
-    myfree(tmp_peptide);
+    peptidefree(tmp_peptide);
     show(peptide,seq_size);
     return TRUE;
 }
@@ -148,7 +152,7 @@ int compare_states(unit *peptide1,unit *peptide2,int seq_size){
     return TRUE;
 }
 
-int mc(unit *peptide1,unit *peptide2,constant constants,int seq_size){
+int mc(unit *peptide1,unit *peptide2,constant *constants,int seq_size){
     int E1,E2;
     double prob;
     E1=calc_energy(peptide1,seq_size);
@@ -158,7 +162,8 @@ int mc(unit *peptide1,unit *peptide2,constant constants,int seq_size){
         copy(peptide1,peptide2,seq_size);
     }else{
         prob=genrand_real3();
-        if(prob<exp(-(E2-E1)*constants.ikT)){
+
+        if(prob<exp(-(E2-E1)*constants->ikT)){
             copy(peptide1,peptide2,seq_size);
         }
     }
@@ -170,13 +175,12 @@ int calc_energy(unit *peptide,int seq_size){
     int energy=0;
     int i,j;
     int x,y;
-
     for(i=0;i<seq_size;i++)
         for(j=i+1;j<seq_size;j++)
             if(peptide->xy[0][i]==peptide->xy[0][j] && peptide->xy[1][i]==peptide->xy[1][j])
                 return 10000;
-
-    for(i=0;i<seq_size;i++){
+    
+    for(i=0;i<seq_size-3;i++){
         if(peptide->state[i]==1){
             for(j=i+3;j<seq_size;j++){
                 if(peptide->state[j]==1){
@@ -210,13 +214,17 @@ int copy(unit *tmp_peptide,unit *peptide,int seq_size){
 
 int local2vector(unit *peptide,int seq_size){
     int i;
+    int j;
+    for(i=2;i<seq_size;i++)
+        peptide->vector[i]=0;
+    
     for(i=2;i<seq_size;i++){
-        if(peptide->local[i]==0){
-            peptide->vector[i-1]=peptide->vector[i-1];
-        }else if(peptide->local[i]==1){
-            peptide->vector[i]=(peptide->vector[i-1]+3)%12;
-        }else{
-            peptide->vector[i]=(peptide->vector[i-1]+9)%12;
+        if(peptide->local[i]==1){
+            for(j=i;j<seq_size;j++)
+                peptide->vector[j]=(peptide->vector[j]+3)%12;
+        }else if(peptide->local[i]==-1){
+            for(j=i;j<seq_size;j++)
+                peptide->vector[j]=(peptide->vector[j]+9)%12;
         }
     }
     return TRUE;
@@ -252,7 +260,7 @@ int setlocal(unit *peptide,int point,int value,int seq_size){
     return TRUE;
 }
 
-int move(unit peptide[],int seq_size){
+int move(unit *peptide,int seq_size){
     int switcher=genrand_int32()%2;
     int point;
     int leftright;
@@ -269,8 +277,9 @@ int move(unit peptide[],int seq_size){
         return TRUE;
     }else if(switcher==1){
         // cornerflip
-        // searche corner.
+        // search corner.
         point=searchcorner(peptide,seq_size);
+        printf("%d\n",point);
         if(point==0)
             return TRUE;
         cornerflip(peptide,point,seq_size);
@@ -288,8 +297,8 @@ int searchcorner(unit *peptide,int seq_size){
     int select;
     int start=3;
     
-    for(i=start;i<seq_size-1;i++)
-        if(peptide[i].local!=0){
+    for(i=start;i<seq_size;i++)
+        if(peptide->local[i]!=0){
             cornernumber++;
             point=i;
         }
@@ -301,7 +310,7 @@ int searchcorner(unit *peptide,int seq_size){
     else{
         select=genrand_int32()%cornernumber;
         for(i=start;i<seq_size-1;i++){
-            if(peptide[i].local!=0){
+            if(peptide->local[i]!=0){
                 if(select==0)
                     return i;
                 select--;
@@ -344,12 +353,21 @@ int flip(unit *peptide,int point,int type,int seq_size){
     }
     return TRUE;
 }
-
+void test(unit *peptide,int total_step,constant *constants,int seq_size){
+    flip(peptide,3,1,seq_size);
+    flip(peptide,4,0,seq_size);
+    flip(peptide,4,1,seq_size);
+    flip(peptide,4,1,seq_size);
+    flip(peptide,7,1,seq_size);
+    show(peptide,seq_size);
+    printf(">> 0");
+}
 
 int show(unit *peptide,int seq_size){
     int i;
     for(i=0;i<seq_size;i++){
-        printf(">>> %3d %3d %3d\n",peptide->state[i],peptide->xy[0][i],peptide->xy[1][i]);
+        //printf(">>> %3d %3d %3d\n",peptide->state[i],peptide->xy[0][i],peptide->xy[1][i]);
+        printf(">>>%3d %3d %3d %3d %3d\n",peptide->state[i],peptide->local[i],peptide->vector[i],peptide->xy[0][i],peptide->xy[1][i]);
     }
     return TRUE;
 }
