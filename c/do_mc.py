@@ -5,7 +5,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 def ploter(seed):
-    cmdline="./a.out 1000000 " + str(seed)
+    cmdline="./a.out 100000000 " + str(seed)
     output=""
     output=subprocess.check_output(cmdline,shell=True)
 
