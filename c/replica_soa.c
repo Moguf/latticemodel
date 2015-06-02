@@ -3,11 +3,16 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
+#include <omp.h>
+
 
 #include "MT.h"
 //----------------------------------------//
 #define TRUE 1
 #define FALSE 0
+
+#define REPLICA_SIZE 2
+
 
 typedef struct unit_struct{
     int *state;
@@ -21,11 +26,12 @@ typedef struct const_values{
     double k;
     double T;
     double ikT;
+    int replica_size;
 } constant;
 
 //-------------------- define func --------------------//
-int init(unit *peptide,int state[],int seq_size);
-int main_loop(unit *peptide,int total_step,constant *constants,int seq_size);
+int init(unit *peptides,int state[],int seq_size,int replica_size);
+int main_loop(unit *peptides,int total_step,constant *constants,int seq_size);
 int move(unit *peptide,int seq_size);
 int compare_states(unit *peptide1,unit *peptide2,int seq_size);
 
@@ -37,7 +43,7 @@ int copy(unit *tmp_peptide,unit *peptide,int seq_size);
 int mc(unit *peptide1,unit *peptide2,constant *constants,int seq_size);
 int calc_energy(unit *peptide,int seq_size);
 
-void peptidefree(unit *peptide);
+void peptidefree(unit *peptide,constant *constant);
 void test(unit *peptide,int total_step,constant *constants,int seq_size);
 //---------- move sets ----------//
 int flip(unit *peptide,int point,int type,int seq_size);
@@ -56,90 +62,112 @@ int main(int argv,char *argc[]){
     /*            0,0,1,1,1,1,1,1,1,1, */
     /*            1,1,1,1,0,0,0,0,1,1, */
     /*            1,1,1,1,0,1,1,0,1,0}; */
-
-    int total_step=atoi(argc[1]);
+    
+    //int total_step=atoi(argc[1]);
+    int total_step=100;
     int seq_size=sizeof(seq)/sizeof(int);
+    
     constant *constants;
-    unit *peptide;
+    //unit peptides[2];
     clock_t start,end;
+    unit *peptides;
     
     start=clock();
     
     init_genrand(atoi(argc[2]));
-
+    
+    
     constants=(constant *)malloc(sizeof(constant));
     constants->k=1;
     constants->T=0.3;
     constants->ikT=1/(constants->k*constants->T);
-    peptide=(unit *)malloc(sizeof(unit));
-    
-    
+    constants->replica_size=REPLICA_SIZE;
 
+    peptides=(unit *)malloc(sizeof(unit)*constants->replica_size);
+    
+    init(peptides,seq,seq_size,constants->replica_size);
 
-    init(peptide,seq,seq_size);
-    //test(peptide,total_step,constants,seq_size);
-    main_loop(peptide,total_step,constants,seq_size);
-    printf(">> %4d\n",calc_energy(peptide,seq_size));
+    //test(peptides,total_step,constants,seq_size);
+
+    main_loop(peptides,total_step,constants,seq_size);
+    //printf(">> %4d\n",calc_energy(peptides,seq_size));
     
     end=clock();
     printf(">%8.3lf\n",(double)(end-start)/CLOCKS_PER_SEC);
-
-    peptidefree(peptide);
+    show(&peptides[1],seq_size);
+    printf("------\n");
+    show(&peptides[0],seq_size);
+    peptidefree(peptides,constants);
     free(constants);
-    
     return 0;
 }
 
-void peptidefree(unit *peptide){
-    free(peptide->state);
-    free(peptide->local);
-    free(peptide->vector);
-    free(peptide->xy[0]);
-    free(peptide->xy[1]);
-    free(peptide);
+void peptidefree(unit *peptides,constant *constants){
+    int ireplica;    
+    for(ireplica=0;ireplica<constants->replica_size;ireplica++){
+        free(peptides[ireplica].state);
+        free(peptides[ireplica].local);
+        free(peptides[ireplica].vector);
+        free(peptides[ireplica].xy[0]);
+        free(peptides[ireplica].xy[1]);
+    }
+    free(peptides);
 }
 //----------------------------------------//
-int init(unit *peptide,int state[],int seq_size){
-    int i;
-    peptide->state=(int *)malloc(sizeof(int)*seq_size);
-    peptide->local=(int *)malloc(sizeof(int)*seq_size);
-    peptide->vector=(int *)malloc(sizeof(int)*seq_size);
-    peptide->xy[0]=(int *)malloc(sizeof(int)*seq_size);
-    peptide->xy[1]=(int *)malloc(sizeof(int)*seq_size);
-    peptide->E=0;
+int init(unit *peptides,int state[],int seq_size,int replica_size){
+    int i,ireplica;
     
-    for(i=0;i<seq_size;i++){
-        peptide->state[i]=state[i];
-        peptide->xy[0][i]=0;
-        peptide->xy[1][i]=i;
-        peptide->local[i]=0;
-        peptide->vector[i]=0;
+#pragma omp parallel num_threads(REPLICA_SIZE)
+
+#pragma omp for
+    for(ireplica=0;ireplica<replica_size;ireplica++){
+        printf("%d,%d\n",omp_get_thread_num(),omp_get_num_threads());
+        peptides[ireplica].state=(int *)malloc(sizeof(int)*seq_size);
+        peptides[ireplica].local=(int *)malloc(sizeof(int)*seq_size);
+        peptides[ireplica].vector=(int *)malloc(sizeof(int)*seq_size);
+        peptides[ireplica].xy[0]=(int *)malloc(sizeof(int)*seq_size);
+        peptides[ireplica].xy[1]=(int *)malloc(sizeof(int)*seq_size);
+        peptides[ireplica].E=0;
+
+        for(i=0;i<seq_size;i++){
+            peptides[ireplica].state[i]=state[i];
+            peptides[ireplica].xy[0][i]=0;
+            peptides[ireplica].xy[1][i]=i;
+            peptides[ireplica].local[i]=0;
+            peptides[ireplica].vector[i]=0;
+        }
+
     }
 
     return TRUE;
 }
 
-int main_loop(unit *peptide,int total_step,constant *constants,int seq_size){
+int main_loop(unit *peptides,int total_step,constant *constants,int seq_size){
     int istep;
+    int ireplica;
+    int replica_size=constants->replica_size;
     unit *tmp_peptide;
-    
-    tmp_peptide=(unit *)malloc(sizeof(unit));
-    init(tmp_peptide,peptide->state,seq_size);
 
-    for(istep=0;istep<total_step;istep++){
-        copy(tmp_peptide,peptide,seq_size);
-        move(tmp_peptide,seq_size);
-        if(TRUE!=compare_states(tmp_peptide,peptide,seq_size))
-            mc(peptide,tmp_peptide,constants,seq_size);
-        if(istep%(total_step/1000)==0){
-            printf("%lf",constants->T);
-            printf("-->%lf\n",(double)istep/(double)total_step);
-            constants->T=exp(-3*constants->T*istep/total_step);
-            constants->ikT=1/(constants->T*constants->k);
+    for(ireplica=0;ireplica<replica_size;ireplica++){
+        tmp_peptide=(unit *)malloc(sizeof(unit));
+        init(tmp_peptide,peptides[ireplica].state,seq_size,replica_size);
+        
+        for(istep=0;istep<total_step;istep++){
+            copy(tmp_peptide,&peptides[ireplica],seq_size);
+            move(tmp_peptide,seq_size);
+            if(TRUE!=compare_states(tmp_peptide,&peptides[ireplica],seq_size))
+                mc(&peptides[ireplica],tmp_peptide,constants,seq_size);
+
+            if(istep%(total_step/10)==0){
+                printf("T %lf\n",constants->T);
+                constants->T=exp(-3*constants->T*istep/total_step);
+                constants->ikT=1/(constants->T*constants->k);
+            }
+
         }
+        //peptidefree(tmp_peptide);
     }
-    peptidefree(tmp_peptide);
-    show(peptide,seq_size);
+    //show(&peptides[0],seq_size);
     return TRUE;
 }
 
@@ -279,7 +307,6 @@ int move(unit *peptide,int seq_size){
         // cornerflip
         // search corner.
         point=searchcorner(peptide,seq_size);
-        printf("%d\n",point);
         if(point==0)
             return TRUE;
         cornerflip(peptide,point,seq_size);
@@ -360,7 +387,6 @@ void test(unit *peptide,int total_step,constant *constants,int seq_size){
     flip(peptide,4,1,seq_size);
     flip(peptide,7,1,seq_size);
     show(peptide,seq_size);
-    printf(">> 0");
 }
 
 int show(unit *peptide,int seq_size){
