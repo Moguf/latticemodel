@@ -8,7 +8,6 @@ def ploter(seed):
     cmdline="./a.out"
     output=""
     output=subprocess.check_output(cmdline,shell=True)
-    print output
     hxdata=[]
     hydata=[]
 
@@ -39,7 +38,7 @@ def ploter(seed):
                 pxdata.append(int(ilist[-2]))
                 pydata.append(int(ilist[-1]))
 
-            
+    print "E=>",energy
     fig=plt.figure()
     ax=fig.add_subplot(111)
     lim=13
@@ -49,8 +48,8 @@ def ploter(seed):
     ax.scatter(hxdata,hydata,color="g",alpha=0.5,s=200)
     ax.scatter(pxdata,pydata,color="b",alpha=0.5,s=200)
     ax.plot(xdata,ydata,lw=2,alpha=0.3)
-    ax.set_title("Energy="+energy+":time="+time)
-    plt.savefig("test.png")
+    ax.set_title("Energy="+energy+":time=")
+    plt.savefig("replica"+str(seed)+".png")
 
-    
-ploter(3)
+for i in range(1000):    
+    ploter(i)
